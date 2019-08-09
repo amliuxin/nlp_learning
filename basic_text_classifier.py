@@ -69,18 +69,17 @@ class Classifier(object):
         train_op = optimizer.apply_gradients(grad_and_var, global_step=global_steps)
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
+            # generator for training process
+            train_gens = self.get_batch(self.batch_size)
             for iter in range(self.iter_num):
-                words, labels = next(self.get_batch(self.batch_size))
+                texts, labels = next(train_gens)
                 _, iter_num, loss_eval, embed_w = sess.run([train_op, global_steps, loss, "embedd_w:0"],
-                                                           feed_dict={word_ids: words, label: labels})
+                                                           feed_dict={word_ids: texts, label: labels})
                 print("-" * 30 + "iteration {}".format(iter_num) + "-" * 30)
                 print(embed_w[0:2, :])
 
     def get_batch(self, batch_size=4):
         train_data = list(self.corpus.items())
-        batch = np.random.choice(len(train_data), batch_size, replace=False)
-        batch = [train_data[idx] for idx in batch]
-        words, labels = [], []
 
         def text2id(query):
             ret = []
@@ -91,11 +90,16 @@ class Classifier(object):
                 else:
                     ret.append(self.vocab["<PAD>"])
             return ret
-        for text, lbl in batch:
-            # transform word to id
-            words.append(text2id(text))
-            labels.append(lbl)
-        yield words, labels
+        # get a batch data
+        while True:
+            batch = np.random.choice(len(train_data), batch_size, replace=False)
+            batch = [train_data[idx] for idx in batch]
+            texts, labels = [], []
+            for text, lbl in batch:
+                # transform word to id
+                texts.append(text2id(text))
+                labels.append(lbl)
+            yield texts, labels
 
 
 if __name__ == "__main__":
